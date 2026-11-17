@@ -1,0 +1,390 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wall Bot — плотности стакана Binance Futures</title>
+<style>
+:root{
+  --bg:#0b0e14; --bg2:#11151f; --bg3:#171c29; --line:#232a3b;
+  --tx:#dbe2f0; --dim:#7d879e; --dim2:#4a5468;
+  --green:#22c55e; --green-bg:rgba(34,197,94,.12);
+  --red:#ef4444; --red-bg:rgba(239,68,68,.12);
+  --cyan:#38bdf8; --yellow:#eab308; --purple:#a78bfa; --orange:#fb923c;
+  --mono:ui-monospace,'SF Mono','Cascadia Code',Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding-bottom:40px}
+.wrap{max-width:1440px;margin:0 auto;padding:0 16px}
+header{position:sticky;top:0;z-index:50;background:rgba(11,14,20,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;gap:10px;padding:10px 0;flex-wrap:wrap}
+.logo{font-weight:800;font-size:17px;letter-spacing:.4px;margin-right:6px}
+.logo span{color:var(--cyan)}
+.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;border:1px solid var(--line);letter-spacing:.5px}
+.b-live{background:var(--red-bg);color:#fca5a5;border-color:#7f1d1d}
+.b-paper{background:var(--bg3);color:var(--dim)}
+.b-testnet{background:rgba(234,179,8,.12);color:#fde047;border-color:#713f12}
+.b-data-live{background:var(--green-bg);color:#86efac;border-color:#14532d}
+.b-data-demo{background:rgba(167,139,250,.12);color:#c4b5fd;border-color:#4c1d95}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:var(--red)}
+.dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.spacer{flex:1}
+.switch{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:12px;color:var(--dim)}
+.switch input{display:none}
+.track{width:36px;height:20px;border-radius:20px;background:var(--bg3);border:1px solid var(--line);position:relative;transition:.2s}
+.track::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:.2s}
+.switch input:checked+.track{background:var(--green-bg);border-color:var(--green)}
+.switch input:checked+.track::after{left:18px;background:var(--green)}
+.banner{margin:10px 0 0;padding:8px 14px;border-radius:8px;font-size:12.5px;border:1px solid;display:none}
+.banner.warn{display:block;background:rgba(234,179,8,.08);border-color:#713f12;color:#fde047}
+.banner.demo{display:block;background:rgba(167,139,250,.08);border-color:#4c1d95;color:#c4b5fd}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:14px 0}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.card .lbl{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+.card .val{font-size:21px;font-weight:700;font-family:var(--mono)}
+.card .sub{font-size:11.5px;color:var(--dim);margin-top:3px}
+.pos{color:var(--green)} .neg{color:var(--red)}
+.tabs{display:flex;gap:4px;margin:6px 0 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{padding:9px 16px;cursor:pointer;color:var(--dim);font-weight:600;font-size:13.5px;border-bottom:2px solid transparent}
+.tab.active{color:var(--tx);border-bottom-color:var(--cyan)}
+.tab .cnt{font-size:11px;background:var(--bg3);padding:1px 7px;border-radius:10px;margin-left:5px;font-family:var(--mono)}
+.toolbar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.toolbar input,.toolbar select{background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:7px 10px;font-size:13px;outline:none}
+.toolbar input:focus{border-color:var(--cyan)}
+.tblwrap{overflow:auto;max-height:62vh;border:1px solid var(--line);border-radius:12px;background:var(--bg2)}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:900px}
+th{position:sticky;top:0;background:var(--bg3);color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:9px 12px;text-align:left;z-index:2}
+td{padding:8px 12px;border-top:1px solid var(--line);font-family:var(--mono);white-space:nowrap}
+tr:hover td{background:rgba(56,189,248,.04)}
+tr.dead{opacity:.45}
+tr.hot td{background:rgba(234,179,8,.06)}
+.sym{font-weight:700;font-family:system-ui}
+.side-bid{color:var(--green);font-weight:700}
+.side-ask{color:var(--red);font-weight:700}
+.chip{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:12px;letter-spacing:.3px}
+.ch-wait{background:var(--bg3);color:var(--dim)}
+.ch-near{background:rgba(234,179,8,.15);color:#fde047}
+.ch-trig{background:rgba(56,189,248,.15);color:#7dd3fc}
+.ch-pull{background:rgba(251,146,60,.15);color:#fdba74}
+.ch-broke{background:var(--red-bg);color:#fca5a5}
+.distbar{width:90px;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:8px}
+.distbar i{display:block;height:100%;background:var(--cyan);border-radius:3px}
+.distbar.hot i{background:var(--yellow)}
+.empty{padding:40px;text-align:center;color:var(--dim);font-size:13.5px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.pcard{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px}
+.pcard.long{border-left:3px solid var(--green)}
+.pcard.short{border-left:3px solid var(--red)}
+.phead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.phead .sym{font-size:16px}
+.prow{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:var(--dim)}
+.prow b{color:var(--tx);font-family:var(--mono);font-weight:600}
+.ladder{margin:10px 0 6px}
+.lstep{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 8px;border-radius:7px;margin-bottom:4px;background:var(--bg3);color:var(--dim)}
+.lstep.done{background:var(--green-bg);color:#86efac}
+.lstep .mark{width:16px;text-align:center}
+.prog{height:6px;background:var(--bg3);border-radius:4px;overflow:hidden;margin:8px 0}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));border-radius:4px;transition:width .4s}
+.btn{background:var(--bg3);border:1px solid var(--line);color:var(--tx);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600}
+.btn:hover{border-color:var(--red);color:#fca5a5}
+.be-badge{font-size:10px;background:var(--green-bg);color:#86efac;padding:2px 7px;border-radius:10px;font-weight:700}
+.events{display:flex;flex-direction:column;gap:6px;max-height:64vh;overflow:auto}
+.ev{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--dim2);border-radius:9px;padding:9px 13px;font-size:12.5px}
+.ev.signal{border-left-color:var(--cyan)}
+.ev.success{border-left-color:var(--green)}
+.ev.warn{border-left-color:var(--yellow)}
+.ev.error{border-left-color:var(--red)}
+.ev .t{color:var(--dim2);font-family:var(--mono);font-size:11px;margin-right:8px}
+.ev b{font-size:13px}
+.ev .txt{color:var(--dim);margin-top:2px}
+footer{margin-top:18px;color:var(--dim2);font-size:11.5px;display:flex;gap:14px;flex-wrap:wrap}
+#toasts{position:fixed;top:64px;right:16px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:380px}
+.toast{background:var(--bg3);border:1px solid var(--line);border-left:4px solid var(--cyan);border-radius:10px;padding:11px 14px;font-size:12.5px;box-shadow:0 8px 30px rgba(0,0,0,.5);cursor:pointer;animation:slide .25s ease}
+.toast.success{border-left-color:var(--green)}
+.toast.warn{border-left-color:var(--yellow)}
+.toast.error{border-left-color:var(--red)}
+.toast b{display:block;font-size:13px;margin-bottom:2px}
+.toast .txt{color:var(--dim)}
+@keyframes slide{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+@media(max-width:760px){.card .val{font-size:17px}.hrow{gap:6px}}
+</style>
+</head>
+<body>
+<header><div class="wrap hrow">
+  <div class="logo">🧱 WALL<span>BOT</span></div>
+  <span class="badge b-paper" id="bMode">—</span>
+  <span class="badge b-data-demo" id="bData">—</span>
+  <span class="badge" id="bWs"><span class="dot" id="wsDot"></span>WS</span>
+  <span class="badge" id="bTg" title="Telegram">TG ✕</span>
+  <div class="spacer"></div>
+  <label class="switch" title="Автоматический вход в отскок">
+    <input type="checkbox" id="autoTrade"><span class="track"></span>Автоторговля
+  </label>
+  <label class="switch" title="Звуковые сигналы">
+    <input type="checkbox" id="soundTgl"><span class="track"></span>Звук
+  </label>
+</div></header>
+
+<div class="wrap">
+  <div class="banner" id="banner"></div>
+  <div class="cards">
+    <div class="card"><div class="lbl">Депозит (equity)</div><div class="val" id="cEq">—</div>
+      <div class="sub" id="cEqSub">—</div><svg id="spark" width="100%" height="30" style="margin-top:4px"></svg></div>
+    <div class="card"><div class="lbl">PnL за 24 часа</div><div class="val" id="cPnl">—</div><div class="sub" id="cPnlSub">—</div></div>
+    <div class="card"><div class="lbl">Монеты в работе</div><div class="val" id="cSym">—</div><div class="sub" id="cSymSub">—</div></div>
+    <div class="card"><div class="lbl">Плотности</div><div class="val" id="cWalls">—</div><div class="sub" id="cWallsSub">—</div></div>
+    <div class="card"><div class="lbl">Позиции</div><div class="val" id="cPos">—</div><div class="sub" id="cPosSub">—</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="walls">Плотности<span class="cnt" id="nWalls">0</span></div>
+    <div class="tab" data-tab="positions">Позиции<span class="cnt" id="nPos">0</span></div>
+    <div class="tab" data-tab="trades">История<span class="cnt" id="nTrades">0</span></div>
+    <div class="tab" data-tab="events">События<span class="cnt" id="nEvents">0</span></div>
+  </div>
+
+  <div id="tab-walls">
+    <div class="toolbar">
+      <input type="text" id="fSearch" placeholder="Поиск монеты…" style="width:170px">
+      <select id="fSide"><option value="">Бид + Аск</option><option value="bid">Только биды</option><option value="ask">Только аски</option></select>
+      <select id="fSort"><option value="dist">Сортировка: ближе к цене</option><option value="size">крупнее</option><option value="ratio">больше ×15м</option></select>
+      <select id="fAlive"><option value="alive">Активные</option><option value="all">Все (вкл. снятые)</option></select>
+    </div>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Монета</th><th>Сторона</th><th>Цена уровня</th><th>Объём стены</th><th>×15м объём</th><th>Дистанция</th><th>NATR 5m</th><th>Возраст</th><th>Статус</th></tr></thead>
+      <tbody id="wallsBody"></tbody>
+    </table></div>
+  </div>
+
+  <div id="tab-positions" style="display:none"><div class="pgrid" id="posGrid"></div></div>
+
+  <div id="tab-trades" style="display:none">
+    <div class="tblwrap"><table>
+      <thead><tr><th>Закрыта</th><th>Монета</th><th>Сторона</th><th>Вход</th><th>Выход (ср.)</th><th>Номинал</th><th>PnL $</th><th>PnL %</th><th>Причина</th><th>Длительность</th></tr></thead>
+      <tbody id="tradesBody"></tbody>
+    </table></div>
+  </div>
+
+  <div id="tab-events" style="display:none"><div class="events" id="evList"></div></div>
+
+  <footer id="foot"></footer>
+</div>
+<div id="toasts"></div>
+
+<script>
+'use strict';
+let S=null, lastEvId=0, firstSnap=true, ws=null;
+let activeTab=localStorage.getItem('wb_tab')||'walls';
+let soundOn=localStorage.getItem('wb_sound')!=='0';
+let audioCtx=null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- формат ---------- */
+const fUsd=v=>{const a=Math.abs(v);if(a>=1e6)return (v/1e6).toFixed(2)+'M';if(a>=1e3)return (v/1e3).toFixed(1)+'K';return v.toFixed(0)};
+const fPrice=p=>p>=1000?p.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):p>=1?p.toFixed(4):p.toFixed(6);
+const fMoney=v=>(v<0?'−$':'$')+Math.abs(v).toFixed(2);
+const fSign=v=>(v>=0?'+':'−')+Math.abs(v).toFixed(2);
+const fTime=ts=>new Date(ts*1000).toLocaleTimeString('ru-RU');
+const fDur=s=>s>=3600?Math.floor(s/3600)+'ч '+Math.floor(s%3600/60)+'м':s>=60?Math.floor(s/60)+'м '+Math.round(s%60)+'с':Math.round(s)+'с';
+const pnlCls=v=>v>=0?'pos':'neg';
+const REASONS={tp_final:'тейки 1/2/3%',stop:'стоп за стеной',breakeven:'безубыток',wall_pull:'стену сняли',manual:'вручную',error:'ошибка'};
+const STATUS={watching:['ждёт','ch-wait'],approaching:['подходит','ch-near'],triggered:['сигнал','ch-trig'],pulled:['снята','ch-pull'],broken:['пробита','ch-broke']};
+
+/* ---------- звук ---------- */
+function ac(){if(!audioCtx){try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();return audioCtx}
+function beep(f,d,delay=0,type='sine',g=.12){const c=ac();if(!c)return;const t=c.currentTime+delay;const o=c.createOscillator(),gn=c.createGain();o.type=type;o.frequency.value=f;gn.gain.setValueAtTime(g,t);gn.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(gn).connect(c.destination);o.start(t);o.stop(t+d+.05)}
+function playSound(type){if(!soundOn)return;
+  if(type==='approach'){beep(880,.12);beep(1320,.18,.15)}
+  else if(type==='entry'){beep(523,.25);beep(659,.25,.02);beep(784,.35,.04)}
+  else if(type==='tp'||type==='breakeven'){beep(1046,.18);beep(1568,.22,.1)}
+  else if(type==='stop'){beep(196,.4,0,'sawtooth',.08)}
+  else if(type==='pull'||type==='broken'){beep(440,.15);beep(330,.2,.12)}
+  else if(type==='close'){beep(392,.25)}
+  else if(type==='error'){beep(220,.3,0,'square',.06)}}
+document.addEventListener('click',()=>ac(),{once:true});
+
+/* ---------- toast ---------- */
+function toast(ev){const box=$('#toasts');const d=document.createElement('div');
+  d.className='toast '+ev.level;d.innerHTML='<b>'+esc(ev.title)+'</b><div class="txt">'+esc(ev.text)+'</div>';
+  d.onclick=()=>d.remove();box.appendChild(d);
+  while(box.children.length>5)box.firstChild.remove();
+  setTimeout(()=>d.remove(),8000)}
+const TOAST_TYPES=new Set(['approach','entry','tp','breakeven','stop','close','pull','broken','error']);
+
+/* ---------- вкладки ---------- */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  activeTab=t.dataset.tab;localStorage.setItem('wb_tab',activeTab);
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
+  ['walls','positions','trades','events'].forEach(k=>$('#tab-'+k).style.display=k===activeTab?'':'none');
+  renderTab()});
+function initTab(){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===activeTab));
+  ['walls','positions','trades','events'].forEach(k=>$('#tab-'+k).style.display=k===activeTab?'':'none')}
+
+/* ---------- переключатели ---------- */
+$('#soundTgl').checked=soundOn;
+$('#soundTgl').onchange=e=>{soundOn=e.target.checked;localStorage.setItem('wb_sound',soundOn?'1':'0');if(soundOn)beep(880,.1)};
+$('#autoTrade').onchange=async e=>{try{await fetch('/api/autotrade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:e.target.checked})})}catch(err){}};
+['fSearch','fSide','fSort','fAlive'].forEach(id=>$('#'+id).addEventListener('input',renderTab));
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-close]');if(!b)return;
+  if(confirm('Закрыть позицию по рынку?')){try{await fetch('/api/close/'+b.dataset.close,{method:'POST'})}catch(err){}}});
+
+/* ---------- рендер ---------- */
+function renderHeader(){
+  const m=S.mode.toUpperCase();
+  const bm=$('#bMode');bm.textContent=m+(S.execution_enabled?'':' · мониторинг');
+  bm.className='badge '+(S.mode==='live'?'b-live':S.mode==='testnet'?'b-testnet':'b-paper');
+  const bd=$('#bData');bd.textContent='ДАННЫЕ: '+S.data_source.toUpperCase();
+  bd.className='badge '+(S.data_source==='live'?'b-data-live':'b-data-demo');
+  $('#wsDot').className='dot'+(S.ws_connected?' on':'');
+  $('#bTg').textContent='TG '+(S.telegram_active?'✓':'✕');
+  $('#bTg').style.color=S.telegram_active?'#86efac':'var(--dim2)';
+  if(document.activeElement!==$('#autoTrade'))$('#autoTrade').checked=S.autotrade;
+  const bn=$('#banner');
+  if(S.data_source==='demo'){bn.className='banner demo';bn.textContent='DEMO-режим: синтетический рынок (Binance недоступен из этой среды). Все сделки — симуляция. На твоём компьютере бот подключится к реальному Binance.'}
+  else if(!S.execution_enabled&&(S.mode==='live'||S.mode==='testnet')){bn.className='banner warn';bn.textContent='⚠ API-ключи не заданы или не работают — бот только мониторит стакан и шлёт уведомления. Впиши ключи в config.yaml для торговли.'}
+  else bn.className='banner';
+}
+function renderCards(){
+  const eq=S.equity,un=S.unrealized,rt=S.realized_today;
+  $('#cEq').textContent=fMoney(eq);
+  const grow=S.paper_start>0?(eq/S.paper_start-1)*100:0;
+  $('#cEqSub').innerHTML=S.mode==='paper'||S.data_source==='demo'
+    ?'старт '+fMoney(S.paper_start)+' · <span class="'+pnlCls(grow)+'">'+fSign(grow)+'%</span>'
+    :'USDT-маржа futures';
+  drawSpark();
+  const tot=rt+un;
+  $('#cPnl').innerHTML='<span class="'+pnlCls(tot)+'">'+fSign(tot)+'$</span>';
+  $('#cPnlSub').innerHTML='реализ. <span class="'+pnlCls(rt)+'">'+fSign(rt)+'</span> · открыт. <span class="'+pnlCls(un)+'">'+fSign(un)+'</span>';
+  $('#cSym').textContent=S.universe.symbols.length;
+  $('#cSymSub').textContent='прошли фильтр из '+S.universe.scanned+' · стаканов '+ (S.books_synced||0);
+  const alive=S.walls.filter(w=>['watching','approaching','triggered'].includes(w.status));
+  const near=alive.filter(w=>w.status!=='watching').length;
+  $('#cWalls').textContent=alive.length;
+  $('#cWallsSub').textContent=near+' подходят к цене';
+  $('#cPos').textContent=S.positions.length+' / '+S.settings.max_pos;
+  const nom=S.positions.reduce((a,p)=>a+p.qty_remaining*p.price,0);
+  $('#cPosSub').textContent='номинал '+fMoney(nom);
+  $('#nWalls').textContent=alive.length;$('#nPos').textContent=S.positions.length;
+  $('#nTrades').textContent=S.trades.length;$('#nEvents').textContent=S.events.length;
+  $('#foot').innerHTML='<span>подход ≤ '+S.settings.approach_pct+'%</span><span>стена ≥ ×'+S.settings.ratio+' к 15м объёму</span><span>NATR(14) 5m ≤ '+S.settings.natr_max+'%</span><span>объём 24ч > $'+fUsd(S.settings.min_vol)+'</span><span>риск '+(S.settings.risk*100).toFixed(1)+'% · плечо ≤'+S.settings.max_lev+'x</span><span>стоп за стеной +'+S.settings.stop_buffer+'%</span><span>аптайм '+fDur(S.uptime_sec)+'</span>';
+}
+function drawSpark(){
+  const pts=S.equity_curve||[];if(pts.length<2)return;
+  const w=160,h=30,vals=pts.map(p=>p[1]);
+  let mn=Math.min(...vals),mx=Math.max(...vals);if(mx-mn<1e-9){mx+=1;mn-=1}
+  const path=pts.map((p,i)=>(i/(pts.length-1)*w).toFixed(1)+','+(h-2-(p[1]-mn)/(mx-mn)*(h-4)).toFixed(1)).join(' ');
+  const up=vals[vals.length-1]>=vals[0];
+  $('#spark').setAttribute('viewBox','0 0 '+w+' '+h);
+  $('#spark').innerHTML='<polyline points="'+path+'" fill="none" stroke="'+(up?'#22c55e':'#ef4444')+'" stroke-width="1.5"/>';
+}
+function renderTab(){
+  if(!S)return;
+  if(activeTab==='walls')renderWalls();
+  else if(activeTab==='positions')renderPositions();
+  else if(activeTab==='trades')renderTrades();
+  else renderEvents();
+}
+function renderWalls(){
+  const q=$('#fSearch').value.trim().toUpperCase(),side=$('#fSide').value,
+        sort=$('#fSort').value,onlyAlive=$('#fAlive').value==='alive';
+  let ws=S.walls.filter(w=>(!q||w.symbol.includes(q))&&(!side||w.side===side));
+  if(onlyAlive)ws=ws.filter(w=>['watching','approaching','triggered'].includes(w.status));
+  ws.sort((a,b)=>sort==='size'?b.notional-a.notional:sort==='ratio'?b.ratio-a.ratio:a.distance_pct-b.distance_pct);
+  const body=$('#wallsBody');const scroll=body.closest('.tblwrap').scrollTop;
+  if(!ws.length){body.innerHTML='<tr><td colspan="9"><div class="empty">'+(S.books_synced?'Плотностей по критериям пока нет — ждём аномальные объёмы в стакане…':'Синхронизация стаканов и фильтр монет (NATR/объём)… это занимает до минуты.')+'</div></td></tr>';return}
+  body.innerHTML=ws.map(w=>{
+    const alive=['watching','approaching','triggered'].includes(w.status);
+    const st=STATUS[w.status]||['?','ch-wait'];
+    const prox=Math.max(0,Math.min(1,1-w.distance_pct/2));
+    const hot=w.distance_pct<=S.settings.approach_pct*2&&alive;
+    return '<tr class="'+(alive?'':'dead')+(hot?' hot':'')+'">'
+      +'<td class="sym">'+esc(w.symbol)+'</td>'
+      +'<td class="side-'+w.side+'">'+(w.side==='bid'?'БИД ↓':'АСК ↑')+'</td>'
+      +'<td>'+fPrice(w.price)+'</td>'
+      +'<td>$'+fUsd(w.notional)+'</td>'
+      +'<td>×'+w.ratio.toFixed(1)+'</td>'
+      +'<td>'+w.distance_pct.toFixed(3)+'%<span class="distbar'+(hot?' hot':'')+'"><i style="width:'+(prox*100).toFixed(0)+'%"></i></span></td>'
+      +'<td>'+(w.natr?w.natr.toFixed(2)+'%':'—')+'</td>'
+      +'<td>'+fDur(w.age_sec)+'</td>'
+      +'<td><span class="chip '+st[1]+'">'+st[0]+'</span></td></tr>';
+  }).join('');
+  body.closest('.tblwrap').scrollTop=scroll;
+}
+function renderPositions(){
+  const g=$('#posGrid');
+  if(!S.positions.length){g.innerHTML='<div class="empty" style="grid-column:1/-1">Открытых позиций нет. Бот войдёт в отскок, когда цена подойдёт к плотности на '+S.settings.approach_pct+'%.</div>';return}
+  g.innerHTML=S.positions.map(p=>{
+    const mv=p.move_pct,up=p.upnl;
+    const lastMove=S.settings.ladder[S.settings.ladder.length-1].move_pct;
+    const prog=Math.max(0,Math.min(100,mv/lastMove*100));
+    const ladder=p.ladder.map((s,i)=>'<div class="lstep'+(s.done?' done':'')+'"><span class="mark">'+(s.done?'✓':'○')+'</span>+'+s.move+'% → закрыть '+(i===p.ladder.length-1?'остаток':(s.frac*100)+'%')+(s.be?' · стоп в БУ':'')+(s.done&&s.price?' <span style="margin-left:auto;font-family:var(--mono)">'+fPrice(s.price)+'</span>':'')+'</div>').join('');
+    return '<div class="pcard '+p.side+'">'
+      +'<div class="phead"><span class="sym">'+esc(p.symbol)+'</span>'
+      +'<span class="chip '+(p.side==='long'?'ch-trig':'ch-broke')+'">'+p.side.toUpperCase()+'</span>'
+      +(p.be_moved?'<span class="be-badge">СТОП В БУ</span>':'')
+      +'<span style="margin-left:auto;font-family:var(--mono)" class="'+pnlCls(up)+'"><b>'+fSign(up)+'$</b></span></div>'
+      +'<div class="prow"><span>Вход</span><b>'+fPrice(p.entry)+'</b></div>'
+      +'<div class="prow"><span>Текущая цена</span><b>'+fPrice(p.price)+'</b></div>'
+      +'<div class="prow"><span>Движение</span><b class="'+pnlCls(mv)+'">'+fSign(mv)+'%</b></div>'
+      +'<div class="prow"><span>Остаток позиции</span><b>'+p.qty_remaining.toPrecision(5)+' / '+p.qty_initial.toPrecision(5)+'</b></div>'
+      +'<div class="prow"><span>Стоп '+(p.be_moved?'(безубыток)':'(за стеной)')+'</span><b>'+fPrice(p.stop)+'</b></div>'
+      +'<div class="prow"><span>Стена (уровень)</span><b>'+fPrice(p.wall_price)+'</b></div>'
+      +'<div class="prow"><span>Зафиксировано</span><b class="'+pnlCls(p.realized)+'">'+fSign(p.realized)+'$</b></div>'
+      +'<div class="prog"><i style="width:'+prog.toFixed(1)+'%"></i></div>'
+      +'<div class="ladder">'+ladder+'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">'
+      +'<span style="font-size:11px;color:var(--dim)">в рынке '+fDur(p.duration_sec)+'</span>'
+      +'<button class="btn" data-close="'+p.id+'">Закрыть вручную</button></div></div>';
+  }).join('');
+}
+function renderTrades(){
+  const body=$('#tradesBody');const scroll=body.closest('.tblwrap').scrollTop;
+  if(!S.trades.length){body.innerHTML='<tr><td colspan="10"><div class="empty">Сделок пока не было.</div></td></tr>';return}
+  body.innerHTML=S.trades.map(t=>{
+    const ex=t.closes&&t.closes.length?t.closes.reduce((a,c)=>a+c.price*c.qty,0)/t.closes.reduce((a,c)=>a+c.qty,0):0;
+    const pct=t.notional>0?t.realized/t.notional*100:0;
+    return '<tr><td>'+fTime(t.closed_at)+'</td><td class="sym">'+esc(t.symbol)+'</td>'
+      +'<td class="'+(t.side==='long'?'side-bid':'side-ask')+'">'+t.side.toUpperCase()+'</td>'
+      +'<td>'+fPrice(t.entry)+'</td><td>'+fPrice(ex)+'</td>'
+      +'<td>$'+fUsd(t.notional)+'</td>'
+      +'<td class="'+pnlCls(t.realized)+'">'+fSign(t.realized)+'</td>'
+      +'<td class="'+pnlCls(pct)+'">'+fSign(pct)+'%</td>'
+      +'<td>'+(REASONS[t.reason]||t.reason)+'</td><td>'+fDur(t.duration_sec)+'</td></tr>';
+  }).join('');
+  body.closest('.tblwrap').scrollTop=scroll;
+}
+function renderEvents(){
+  const el=$('#evList');const scroll=el.scrollTop;
+  if(!S.events.length){el.innerHTML='<div class="empty">Событий пока нет.</div>';return}
+  el.innerHTML=S.events.map(e=>'<div class="ev '+e.level+'"><span class="t">'+fTime(e.ts)+'</span><b>'+esc(e.title)+'</b>'+(e.text?'<div class="txt">'+esc(e.text)+'</div>':'')+'</div>').join('');
+  el.scrollTop=scroll;
+}
+
+/* ---------- события: тосты и звук ---------- */
+function handleEvents(){
+  const evs=S.events;if(!evs.length)return;
+  const maxId=Math.max(...evs.map(e=>e.id));
+  if(firstSnap){lastEvId=maxId;firstSnap=false;return}
+  const fresh=evs.filter(e=>e.id>lastEvId).reverse();
+  for(const e of fresh){if(TOAST_TYPES.has(e.type)){toast(e);playSound(e.type)}}
+  lastEvId=maxId;
+}
+
+/* ---------- соединение ---------- */
+function connect(){
+  const proto=location.protocol==='https:'?'wss://':'ws://';
+  ws=new WebSocket(proto+location.host+'/ws');
+  ws.onmessage=e=>{S=JSON.parse(e.data);renderHeader();renderCards();renderTab();handleEvents()};
+  ws.onclose=()=>{$('#wsDot').className='dot';setTimeout(connect,2000)};
+  ws.onerror=()=>ws.close();
+}
+initTab();
+connect();
+/* резервный опрос, если WS недоступен (например, в песочнице превью) */
+setInterval(async()=>{if(S)return;try{const r=await fetch('/api/state');S=await r.json();renderHeader();renderCards();renderTab();handleEvents()}catch(e){}},3000);
+</script>
+</body>
+</html>
